@@ -1,30 +1,29 @@
+require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const { connectToDatabase } = require('./db/connect');
-const app = express();
 
-// Initialize connection before starting server
-let dbClient;
+const app = express();
+app.use(cors());
+app.use(express.json());
+
 let db;
 
 async function init() {
   try {
-    dbClient = await connectToDatabase();
-    db = dbClient.db("Unit87"); // Replace with your DB name
-
-    app.get('/users', async (req, res) => {
-  try {
-    const users = await db.collection('users').find().toArray();
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+    const dbClient = await connectToDatabase();
+    db = dbClient.db(process.env.DB_NAME || 'myapp');
     
-    app.get('/data', async (req, res) => {
+    // Test route
+    app.get('/', (req, res) => {
+      res.send('Server is running');
+    });
+
+    // Users route
+    app.get('/users', async (req, res) => {
       try {
-        const collection = db.collection('your_collection');
-        const data = await collection.findOne({});
-        res.json(data || { message: "No data found" });
+        const users = await db.collection('users').find().toArray();
+        res.json(users);
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
@@ -35,35 +34,9 @@ async function init() {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {
-    console.error("Failed to initialize application:", error);
+    console.error("Failed to start server:", error);
     process.exit(1);
   }
 }
 
 init();
-
-// Handle graceful shutdown
-process.on('SIGINT', async () => {
-  if (dbClient) {
-    await dbClient.close();
-    console.log("MongoDB connection closed");
-  }
-  process.exit(0);
-});
-
-const mongoose = require('mongoose');
-
-// Connect to MongoDB
-mongoose.connect('your-mongodb-connection-string');
-
-// Define a simple model
-const Data = mongoose.model('Data', { message: String });
-
-// Update endpoint
-app.get('/data', async (req, res) => {
-  let data = await Data.findOne();
-  if (!data) {
-    data = await Data.create({ message: 'Hello from database!' });
-  }
-  res.json(data);
-});
